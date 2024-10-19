@@ -1,15 +1,22 @@
 import os
 import sys
 import logging
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from datetime import datetime, timedelta
 from flask_mail import Mail, Message
+from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Set up logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching for static files
+csrf = CSRFProtect(app)
+limiter = Limiter(app, key_func=get_remote_address)
 
 # Email configuration
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -23,9 +30,9 @@ mail = Mail(app)
 
 # Mock database (replace with actual database in production)
 visa_database = {
-    "IRL123456": {"status": "Approved", "application_date": "2023-03-01"},
-    "IRL789012": {"status": "Rejected", "application_date": "2023-03-15"},
-    "IRL345678": {"status": "Pending", "application_date": "2023-04-01"},
+    "IRL123456": {"status": "Approved", "application_date": "2023-03-01", "email": "applicant1@example.com"},
+    "IRL789012": {"status": "Rejected", "application_date": "2023-03-15", "email": "applicant2@example.com"},
+    "IRL345678": {"status": "Pending", "application_date": "2023-04-01", "email": "applicant3@example.com"},
 }
 
 def calculate_working_days(start_date, end_date):
@@ -57,7 +64,13 @@ def index():
         logger.error(f"Error in index route: {str(e)}", exc_info=True)
         return f"An error occurred: {str(e)}", 500
 
+# Add this new route to get CSRF token
+@app.route('/get-csrf-token')
+def get_csrf_token():
+    return jsonify({'csrf_token': csrf.generate_csrf()})
+
 @app.route("/check_status", methods=["POST"])
+@limiter.limit("5 per minute")
 def check_status():
     try:
         irl_number = request.form["irl_number"]
@@ -70,8 +83,8 @@ def check_status():
             current_date = datetime.now()
             working_days = calculate_working_days(app_date, current_date)
 
-            # Send email
-            recipient_email = "applicant@example.com"  # Replace with actual applicant email
+            # Send email to the applicant's email address
+            recipient_email = visa_info["email"]
             subject = f"Visa Application Status Update - {status}"
             body = f"Your visa application is {status}. It has been {working_days} working days since your application."
             email_sent = send_email(recipient_email, subject, body)
@@ -80,7 +93,8 @@ def check_status():
                 "status": status,
                 "working_days": working_days,
                 "message": f"Your visa application is {status}. It has been {working_days} working days since your application.",
-                "email_sent": email_sent
+                "email_sent": email_sent,
+                "email_error": "" if email_sent else "Failed to send email notification. Please check your email settings."
             })
         else:
             return jsonify({
@@ -95,6 +109,25 @@ def check_status():
 def internal_error(error):
     logger.error(f"Internal Server Error: {str(error)}", exc_info=True)
     return f"Internal Server Error: {str(error)}", 500
+
+@app.route('/send_email', methods=['POST'])
+@limiter.limit("3 per minute")
+def send_email():
+    try:
+        recipient = request.form["recipient"]
+        subject = request.form["subject"]
+        body = request.form["body"]
+
+        if send_email(recipient, subject, body):
+            return jsonify({"success": True, "message": "Email sent successfully!"})
+        else:
+            return jsonify({"success": False, "message": "Error sending email"})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error sending email: {str(e)}"})
+
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory(app.static_folder, filename, cache_timeout=0)
 
 if __name__ == '__main__':
     logger.info("Starting application")
