@@ -28,6 +28,19 @@ async function getCsrfToken() {
     }
 }
 
+function showPopup(message, type) {
+    const popup = document.createElement('div');
+    popup.className = `popup ${type}`;
+    popup.innerHTML = `
+        <div class="popup-content">
+            <h2>${type === 'approved' ? 'Congratulations!' : 'We\'re Sorry'}</h2>
+            <p>${message}</p>
+            <button onclick="this.parentElement.parentElement.remove()">Close</button>
+        </div>
+    `;
+    document.body.appendChild(popup);
+}
+
 document.getElementById('status-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     console.log('Form submitted');
@@ -67,9 +80,10 @@ document.getElementById('status-form').addEventListener('submit', async function
         
         console.log('Received data:', data);  // Log the received data
         let resultHtml = '';
-        if (data.status === 'Not Found') {
-            resultHtml = `<p>${data.message}</p>`;
-            showNotification(data.message, 'error');
+        if (data.status === 'Approved') {
+            showPopup(data.message, 'approved');
+        } else if (data.status === 'Rejected') {
+            showPopup(data.message, 'rejected');
         } else {
             resultHtml = `
                 <h2>Visa Application Status: ${data.status}</h2>
@@ -77,12 +91,12 @@ document.getElementById('status-form').addEventListener('submit', async function
                 <p>${data.message}</p>
                 <p>Email notification: ${data.email_sent ? 'Sent successfully' : 'Failed to send'}</p>
             `;
-            if (data.email_error) {
-                resultHtml += `<p class="error">${data.email_error}</p>`;
-                showNotification(data.email_error, 'error');
-            } else {
-                showNotification('Status checked successfully', 'success');
-            }
+        }
+        if (data.email_error) {
+            resultHtml += `<p class="error">${data.email_error}</p>`;
+            showNotification(data.email_error, 'error');
+        } else {
+            showNotification('Status checked successfully', 'success');
         }
         document.getElementById('result').innerHTML = resultHtml;
     } catch (error) {
