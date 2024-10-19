@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, abort
+from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 import smtplib
 from email.mime.text import MIMEText
@@ -6,19 +7,42 @@ from email.mime.multipart import MIMEMultipart
 from flask_caching import Cache
 import os
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 
 load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///visa_applications.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
-# Mock database (replace with actual database in production)
-visa_database = {
-    "IRL123456": {"status": "Approved", "application_date": "2023-03-01"},
-    "IRL789012": {"status": "Rejected", "application_date": "2023-03-15"},
-    "IRL345678": {"status": "Pending", "application_date": "2023-04-01"},
-}
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+class VisaApplication(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    irl_number = db.Column(db.String(20), unique=True, nullable=False)
+    status = db.Column(db.String(20), nullable=False)
+    application_date = db.Column(db.Date, nullable=False)
+
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(120), nullable=False)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 def calculate_working_days(start_date, end_date):
     working_days = 0
@@ -39,9 +63,14 @@ def send_email(recipient, subject, body):
     message["Subject"] = subject
     message.attach(MIMEText(body, "plain"))
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(sender_email, sender_password)
-        server.send_message(message)
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(message)
+        return True
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        return False
 
 @app.route("/")
 def index():
@@ -53,11 +82,12 @@ def check_status():
     irl_number = request.form["irl_number"]
     application_date = request.form["application_date"]
 
-    if irl_number in visa_database:
-        visa_info = visa_database[irl_number]
-        status = visa_info["status"]
-        app_date = datetime.strptime(visa_info["application_date"], "%Y-%m-%d")
-        current_date = datetime.now()
+    visa_application = VisaApplication.query.filter_by(irl_number=irl_number).first()
+
+    if visa_application:
+        status = visa_application.status
+        app_date = visa_application.application_date
+        current_date = datetime.now().date()
         working_days = calculate_working_days(app_date, current_date)
 
         # Send email based on status
@@ -72,22 +102,76 @@ def check_status():
             subject = "Your Visa Application Status"
             body = f"Your visa application is still pending. It has been {working_days} working days since your application date."
 
-        send_email(recipient_email, subject, body)
+        email_sent = send_email(recipient_email, subject, body)
 
         return jsonify({
             "status": status,
             "working_days": working_days,
-            "message": f"An email has been sent to {recipient_email} with more information."
+            "message": f"An email has been sent to {recipient_email} with more information." if email_sent else "There was an issue sending the email, but your status has been updated."
         })
     else:
         return jsonify({
             "status": "Not Found",
             "message": "No visa application found with the provided IRL number."
-        })
+        }), 404
 
 @app.route("/about")
 def about():
     return render_template("about.html")
 
+@app.route("/admin")
+@login_required
+def admin():
+    applications = VisaApplication.query.all()
+    return render_template("admin.html", applications=applications)
+
+@app.route("/admin/add", methods=["POST"])
+@login_required
+def add_application():
+    irl_number = request.form["irl_number"]
+    status = request.form["status"]
+    application_date = datetime.strptime(request.form["application_date"], "%Y-%m-%d").date()
+
+    new_application = VisaApplication(irl_number=irl_number, status=status, application_date=application_date)
+    db.session.add(new_application)
+    db.session.commit()
+
+    return jsonify({"message": "Application added successfully"}), 201
+
+@app.route("/admin/update", methods=["POST"])
+@login_required
+def update_application():
+    irl_number = request.form["irl_number"]
+    new_status = request.form["status"]
+
+    application = VisaApplication.query.filter_by(irl_number=irl_number).first()
+    if application:
+        application.status = new_status
+        db.session.commit()
+        return jsonify({"message": "Application updated successfully"}), 200
+    else:
+        return jsonify({"message": "Application not found"}), 404
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            login_user(user)
+            return redirect(url_for("admin"))
+        else:
+            return render_template("login.html", error="Invalid username or password")
+    return render_template("login.html")
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("index"))
+
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Visa Status Checker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('index') }}">Home</a></li>
+                <li><a href="{{ url_for('about') }}">About</a></li>
+                <li><a href="{{ url_for('logout') }}">Logout</a></li>
+            </ul>
+        </nav>
+        <h1>Admin Panel</h1>
+        <h2>Add New Application</h2>
+        <form id="add-application-form">
+            <label for="irl_number">IRL Number:</label>
+            <input type="text" id="irl_number" name="irl_number" required>
+            
+            <label for="status">Status:</label>
+            <select id="status" name="status" required>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+            </select>
+            
+            <label for="application_date">Application Date:</label>
+            <input type="date" id="application_date" name="application_date" required>
+            
+            <button type="submit">Add Application</button>
+        </form>
+        <h2>Update Application Status</h2>
+        <form id="update-application-form">
+            <label for="update_irl_number">IRL Number:</label>
+            <input type="text" id="update_irl_number" name="irl_number" required>
+            
+            <label for="update_status">New Status:</label>
+            <select id="update_status" name="status" required>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+            </select>
+            
+            <button type="submit">Update Status</button>
+        </form>
+        <h2>Existing Applications</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>IRL Number</th>
+                    <th>Status</th>
+                    <th>Application Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for application in applications %}
+                <tr>
+                    <td>{{ application.irl_number }}</td>
+                    <td>{{ application.status }}</td>
+                    <td>{{ application.application_date }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script src="{{ url_for('static', filename='admin.js') }}"></script>
+</body>
+</html>
