@@ -17,35 +17,50 @@ function showNotification(message, type) {
 }
 
 async function getCsrfToken() {
-    const response = await fetch('/get-csrf-token');
-    const data = await response.json();
-    console.log('CSRF Token:', data.csrf_token);  // Log the CSRF token
-    return data.csrf_token;
+    try {
+        const response = await fetch('/get-csrf-token');
+        const data = await response.json();
+        console.log('CSRF Token:', data.csrf_token);
+        return data.csrf_token;
+    } catch (error) {
+        console.error('Error fetching CSRF token:', error);
+        throw error;
+    }
 }
 
 document.getElementById('status-form').addEventListener('submit', async function(e) {
     e.preventDefault();
+    console.log('Form submitted');
     
     const formData = new FormData(this);
-    const csrfToken = await getCsrfToken();
+    console.log('Form data:', Object.fromEntries(formData));
     
-    showLoading();
-    
-    fetch('/check_status', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': csrfToken
-        },
-        body: formData
-    })
-    .then(response => {
+    try {
+        const csrfToken = await getCsrfToken();
+        console.log('CSRF token obtained');
+        
+        showLoading();
+        console.log('Sending request to /check_status');
+        
+        const response = await fetch('/check_status', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            body: formData
+        });
+        
+        console.log('Response received:', response.status);
+        
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return response.json();
-    })
-    .then(data => {
+        
+        const data = await response.json();
+        console.log('Parsed response data:', data);
+        
         hideLoading();
+        
         console.log('Received data:', data);  // Log the received data
         let resultHtml = '';
         if (data.status === 'Not Found') {
@@ -66,13 +81,12 @@ document.getElementById('status-form').addEventListener('submit', async function
             }
         }
         document.getElementById('result').innerHTML = resultHtml;
-    })
-    .catch(error => {
+    } catch (error) {
+        console.error('Error in form submission:', error);
         hideLoading();
-        console.error('Error:', error);
         document.getElementById('result').innerHTML = '<p>An error occurred. Please try again later.</p>';
         showNotification('An error occurred. Please try again later.', 'error');
-    });
+    }
 });
 
 function sendEmail() {

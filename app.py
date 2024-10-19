@@ -73,28 +73,33 @@ def get_csrf_token():
 @app.route("/check_status", methods=["POST"])
 @limiter.limit("5 per minute")
 def check_status():
+    logger.info("check_status route accessed")
     try:
-        # Log the incoming request data
-        logger.info(f"Received check_status request: {json.dumps(request.form)}")
-
-        irl_number = request.form["irl_number"]
-        application_date = request.form["application_date"]
-        email = request.form["email"]
-
-        logger.info(f"Checking status for IRL: {irl_number}, Date: {application_date}, Email: {email}")
-
+        logger.info(f"Received form data: {request.form}")
+        
+        irl_number = request.form.get("irl_number")
+        application_date = request.form.get("application_date")
+        email = request.form.get("email")
+        
+        logger.info(f"Parsed data - IRL: {irl_number}, Date: {application_date}, Email: {email}")
+        
+        if not all([irl_number, application_date, email]):
+            logger.error("Missing required fields")
+            return jsonify({"error": "Missing required fields"}), 400
+        
         if irl_number in visa_database:
             visa_info = visa_database[irl_number]
             status = visa_info["status"]
             app_date = datetime.strptime(visa_info["application_date"], "%Y-%m-%d")
             current_date = datetime.now()
             working_days = calculate_working_days(app_date, current_date)
-
-            # Send email to the provided email address
+            
+            logger.info(f"Visa status found: {status}, Working days: {working_days}")
+            
             subject = f"Visa Application Status Update - {status}"
             body = f"Your visa application is {status}. It has been {working_days} working days since your application."
             email_sent = send_email(email, subject, body)
-
+            
             response_data = {
                 "status": status,
                 "working_days": working_days,
@@ -102,12 +107,10 @@ def check_status():
                 "email_sent": email_sent,
                 "email_error": "" if email_sent else "Failed to send email notification. Please check your email address."
             }
-
-            # Log the response data
+            
             logger.info(f"Sending response: {json.dumps(response_data)}")
             return jsonify(response_data)
         else:
-            # Log the not found response
             logger.info(f"Application not found for IRL number: {irl_number}")
             return jsonify({
                 "status": "Not Found",
