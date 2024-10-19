@@ -17,6 +17,7 @@ document.getElementById('status-form').addEventListener('submit', function(e) {
                 <h2>Visa Application Status: ${data.status}</h2>
                 <p>Working days since application: ${data.working_days}</p>
                 <p>${data.message}</p>
+                <p>Email notification: ${data.email_sent ? 'Sent' : 'Failed to send'}</p>
             `;
         }
         document.getElementById('result').innerHTML = resultHtml;
