@@ -36,11 +36,12 @@ def load_visa_database():
         if os.path.exists('visa_status.ods'):
             doc = ezodf.opendoc('visa_status.ods')
             sheet = doc.sheets[0]
-            for row in sheet.rows():
+            for row in sheet.rows()[2:]:  # Skip the header rows
                 if len(row) >= 2 and row[0].value and row[1].value:
-                    irl_number = row[0].value
-                    status = row[1].value
-                    visa_database[irl_number] = {"status": status, "application_date": "2023-01-01"}
+                    application_number = str(row[0].value).strip()
+                    decision = row[1].value.strip()
+                    if decision == "Approved":
+                        visa_database[application_number] = {"status": "Approved", "application_date": "2024-01-01"}
             logger.info(f"Loaded {len(visa_database)} visa records from visa_status.ods")
         else:
             logger.warning("visa_status.ods file not found. Using empty database.")
@@ -99,18 +100,18 @@ def check_status():
     try:
         logger.info(f"Received form data: {request.form}")
         
-        irl_number = request.form.get("irl_number")
+        application_number = request.form.get("application_number")
         application_date = request.form.get("application_date")
         email = request.form.get("email")
         
-        logger.info(f"Parsed data - IRL: {irl_number}, Date: {application_date}, Email: {email}")
+        logger.info(f"Parsed data - Application Number: {application_number}, Date: {application_date}, Email: {email}")
         
-        if not all([irl_number, application_date, email]):
+        if not all([application_number, application_date, email]):
             logger.error("Missing required fields")
             return jsonify({"error": "Missing required fields"}), 400
         
-        if irl_number in visa_database:
-            visa_info = visa_database[irl_number]
+        if application_number in visa_database:
+            visa_info = visa_database[application_number]
             status = visa_info["status"]
             app_date = datetime.strptime(application_date, "%Y-%m-%d")
             current_date = datetime.now()
