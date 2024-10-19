@@ -171,6 +171,21 @@ def logout():
     logout_user()
     return redirect(url_for("index"))
 
+@app.route("/create_admin", methods=["GET", "POST"])
+def create_admin():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            return "Admin user already exists"
+        new_admin = User(username=username)
+        new_admin.set_password(password)
+        db.session.add(new_admin)
+        db.session.commit()
+        return "Admin user created successfully"
+    return render_template("create_admin.html")
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
