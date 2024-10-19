@@ -52,14 +52,14 @@ document.getElementById('status-form').addEventListener('submit', async function
         
         console.log('Response received:', response.status);
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
         const data = await response.json();
         console.log('Parsed response data:', data);
         
         hideLoading();
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}, message: ${data.error || data.message || 'Unknown error'}`);
+        }
         
         console.log('Received data:', data);  // Log the received data
         let resultHtml = '';
@@ -85,13 +85,8 @@ document.getElementById('status-form').addEventListener('submit', async function
         console.error('Error in form submission:', error);
         hideLoading();
         let errorMessage = 'An error occurred. Please try again later.';
-        if (error instanceof Response) {
-            try {
-                const errorData = await error.json();
-                errorMessage = errorData.message || errorData.error || errorMessage;
-            } catch (e) {
-                console.error('Error parsing error response:', e);
-            }
+        if (error.message) {
+            errorMessage = error.message;
         }
         document.getElementById('result').innerHTML = `<p>${errorMessage}</p>`;
         showNotification(errorMessage, 'error');
