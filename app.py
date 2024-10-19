@@ -77,7 +77,7 @@ def get_csrf_token():
         return jsonify({'error': 'Failed to generate CSRF token'}), 500
 
 @app.route("/check_status", methods=["POST"])
-@limiter.limit("10 per minute")  # Increased from 5 to 10 per minute
+@limiter.limit("10 per minute")
 def check_status():
     logger.info("check_status route accessed")
     try:
@@ -135,16 +135,18 @@ def internal_error(error):
 @limiter.limit("3 per minute")
 def send_email_route():
     try:
-        recipient = request.form["recipient"]
-        subject = request.form["subject"]
-        body = request.form["body"]
+        data = request.get_json()
+        recipient = data["recipient"]
+        subject = data["subject"]
+        body = data["body"]
 
         if send_email_notification(recipient, subject, body):
             return jsonify({"success": True, "message": "Email sent successfully!"})
         else:
             return jsonify({"success": False, "message": "Error sending email"})
     except Exception as e:
-        return jsonify({"success": False, "message": f"Error sending email: {str(e)}"})
+        logger.error(f"Error in send_email route: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "message": f"Error sending email: {str(e)}"}), 500
 
 @app.route('/static/<path:filename>')
 def serve_static(filename):

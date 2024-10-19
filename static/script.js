@@ -94,8 +94,12 @@ document.getElementById('status-form').addEventListener('submit', async function
     }
 });
 
-function sendEmail() {
-    // ... (existing code to prepare email data)
+function sendEmail(recipient, subject, body) {
+    const emailData = {
+        recipient: recipient,
+        subject: subject,
+        body: body
+    };
 
     fetch('/send_email', {
         method: 'POST',
