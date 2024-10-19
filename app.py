@@ -11,8 +11,17 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    logger.info("Index route accessed")
-    return render_template('index.html')
+    try:
+        logger.info("Index route accessed")
+        return render_template('index.html')
+    except Exception as e:
+        logger.error(f"Error in index route: {str(e)}")
+        return "An error occurred", 500
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"Internal Server Error: {str(error)}")
+    return "Internal Server Error", 500
 
 if __name__ == '__main__':
     logger.info("Starting application")
