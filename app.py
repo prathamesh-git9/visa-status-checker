@@ -30,22 +30,12 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('EMAIL_USERNAME')
 
 mail = Mail(app)
 
-def load_visa_database():
-    visa_database = {}
-    try:
-        doc = ezodf.opendoc('visa_status.ods')
-        sheet = doc.sheets[0]
-        for row in sheet.rows():
-            if len(row) >= 2 and row[0].value and row[1].value:
-                irl_number = row[0].value
-                status = row[1].value
-                visa_database[irl_number] = {"status": status, "application_date": "2023-01-01"}
-        logger.info(f"Loaded {len(visa_database)} visa records from visa_status.ods")
-    except Exception as e:
-        logger.error(f"Error loading visa database: {str(e)}", exc_info=True)
-    return visa_database
-
-visa_database = load_visa_database()
+# Temporary mock database
+visa_database = {
+    "IRL123456": {"status": "Approved", "application_date": "2023-01-01"},
+    "IRL789012": {"status": "Rejected", "application_date": "2023-01-01"},
+    "IRL345678": {"status": "Pending", "application_date": "2023-01-01"}
+}
 
 def calculate_working_days(start_date, end_date):
     working_days = 0
