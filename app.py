@@ -7,6 +7,7 @@ from flask_mail import Mail, Message
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+import json
 
 # Set up logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -73,8 +74,12 @@ def get_csrf_token():
 @limiter.limit("5 per minute")
 def check_status():
     try:
+        # Log the incoming request data
+        logger.info(f"Received check_status request: {json.dumps(request.form)}")
+
         irl_number = request.form["irl_number"]
         application_date = request.form["application_date"]
+        email = request.form["email"]
 
         if irl_number in visa_database:
             visa_info = visa_database[irl_number]
@@ -83,20 +88,25 @@ def check_status():
             current_date = datetime.now()
             working_days = calculate_working_days(app_date, current_date)
 
-            # Send email to the applicant's email address
-            recipient_email = visa_info["email"]
+            # Send email to the provided email address
             subject = f"Visa Application Status Update - {status}"
             body = f"Your visa application is {status}. It has been {working_days} working days since your application."
-            email_sent = send_email(recipient_email, subject, body)
+            email_sent = send_email(email, subject, body)
 
-            return jsonify({
+            response_data = {
                 "status": status,
                 "working_days": working_days,
                 "message": f"Your visa application is {status}. It has been {working_days} working days since your application.",
                 "email_sent": email_sent,
-                "email_error": "" if email_sent else "Failed to send email notification. Please check your email settings."
-            })
+                "email_error": "" if email_sent else "Failed to send email notification. Please check your email address."
+            }
+
+            # Log the response data
+            logger.info(f"Sending response: {json.dumps(response_data)}")
+            return jsonify(response_data)
         else:
+            # Log the not found response
+            logger.info(f"Application not found for IRL number: {irl_number}")
             return jsonify({
                 "status": "Not Found",
                 "message": "No visa application found with the provided IRL number."
@@ -127,6 +137,7 @@ def send_email():
 
 @app.route('/static/<path:filename>')
 def serve_static(filename):
+    logger.info(f"Serving static file: {filename}")
     return send_from_directory(app.static_folder, filename, cache_timeout=0)
 
 if __name__ == '__main__':

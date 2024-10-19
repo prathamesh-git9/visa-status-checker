@@ -4,20 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visa Status Checker</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v=1) }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v=2) }}">
 </head>
 <body>
-    <h1>Visa Status Checker</h1>
-    <form id="status-form">
-        <label for="irl_number">IRL Number:</label>
-        <input type="text" id="irl_number" name="irl_number" required>
-        <label for="application_date">Application Date:</label>
-        <input type="date" id="application_date" name="application_date" required>
-        <button type="submit">Check Status</button>
-    </form>
-    <div id="result"></div>
-    <div id="loading">Loading...</div>
+    <div class="container">
+        <h1>Visa Status Checker</h1>
+        <form id="status-form">
+            <div class="form-group">
+                <label for="irl_number">IRL Number:</label>
+                <input type="text" id="irl_number" name="irl_number" required>
+            </div>
+            <div class="form-group">
+                <label for="application_date">Application Date:</label>
+                <input type="date" id="application_date" name="application_date" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email for updates:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <button type="submit">Check Status</button>
+        </form>
+        <div id="result" class="result-container"></div>
+    </div>
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Checking status...</p>
+    </div>
     <div id="notification" class="notification"></div>
-    <script src="{{ url_for('static', filename='script.js', v=1) }}"></script>
+    <script src="{{ url_for('static', filename='script.js', v=2) }}"></script>
 </body>
 </html>

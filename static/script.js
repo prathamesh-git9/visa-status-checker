@@ -1,5 +1,5 @@
 function showLoading() {
-    document.getElementById('loading').style.display = 'block';
+    document.getElementById('loading').style.display = 'flex';
 }
 
 function hideLoading() {
