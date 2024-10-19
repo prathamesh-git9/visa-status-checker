@@ -8,7 +8,6 @@ from flask_wtf.csrf import CSRFProtect, generate_csrf
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import json
-import ezodf
 
 # Set up logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
