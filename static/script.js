@@ -19,6 +19,7 @@ function showNotification(message, type) {
 async function getCsrfToken() {
     const response = await fetch('/get-csrf-token');
     const data = await response.json();
+    console.log('CSRF Token:', data.csrf_token);  // Log the CSRF token
     return data.csrf_token;
 }
 
@@ -37,9 +38,15 @@ document.getElementById('status-form').addEventListener('submit', async function
         },
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoading();
+        console.log('Received data:', data);  // Log the received data
         let resultHtml = '';
         if (data.status === 'Not Found') {
             resultHtml = `<p>${data.message}</p>`;

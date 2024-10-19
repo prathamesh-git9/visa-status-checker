@@ -81,6 +81,8 @@ def check_status():
         application_date = request.form["application_date"]
         email = request.form["email"]
 
+        logger.info(f"Checking status for IRL: {irl_number}, Date: {application_date}, Email: {email}")
+
         if irl_number in visa_database:
             visa_info = visa_database[irl_number]
             status = visa_info["status"]
