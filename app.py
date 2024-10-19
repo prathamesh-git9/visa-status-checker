@@ -8,6 +8,7 @@ from flask_wtf.csrf import CSRFProtect, generate_csrf
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import json
+import ezodf
 
 # Set up logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -29,12 +30,22 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('EMAIL_USERNAME')
 
 mail = Mail(app)
 
-# Mock database (replace with actual database in production)
-visa_database = {
-    "IRL123456": {"status": "Approved", "application_date": "2023-03-01", "email": "applicant1@example.com"},
-    "IRL789012": {"status": "Rejected", "application_date": "2023-03-15", "email": "applicant2@example.com"},
-    "IRL345678": {"status": "Pending", "application_date": "2023-04-01", "email": "applicant3@example.com"},
-}
+def load_visa_database():
+    visa_database = {}
+    try:
+        doc = ezodf.opendoc('visa_status.ods')
+        sheet = doc.sheets[0]
+        for row in sheet.rows():
+            if len(row) >= 2 and row[0].value and row[1].value:
+                irl_number = row[0].value
+                status = row[1].value
+                visa_database[irl_number] = {"status": status, "application_date": "2023-01-01"}
+        logger.info(f"Loaded {len(visa_database)} visa records from visa_status.ods")
+    except Exception as e:
+        logger.error(f"Error loading visa database: {str(e)}", exc_info=True)
+    return visa_database
+
+visa_database = load_visa_database()
 
 def calculate_working_days(start_date, end_date):
     working_days = 0
@@ -96,7 +107,7 @@ def check_status():
         if irl_number in visa_database:
             visa_info = visa_database[irl_number]
             status = visa_info["status"]
-            app_date = datetime.strptime(visa_info["application_date"], "%Y-%m-%d")
+            app_date = datetime.strptime(application_date, "%Y-%m-%d")
             current_date = datetime.now()
             working_days = calculate_working_days(app_date, current_date)
             
@@ -113,15 +124,28 @@ def check_status():
                 "email_sent": email_sent,
                 "email_error": "" if email_sent else "Failed to send email notification. Please check your email address."
             }
-            
-            logger.info(f"Sending response: {json.dumps(response_data)}")
-            return jsonify(response_data)
         else:
-            logger.info(f"Application not found for IRL number: {irl_number}")
-            return jsonify({
-                "status": "Not Found",
-                "message": "No visa application found with the provided IRL number."
-            }), 404
+            status = "Pending"
+            app_date = datetime.strptime(application_date, "%Y-%m-%d")
+            current_date = datetime.now()
+            working_days = calculate_working_days(app_date, current_date)
+            
+            logger.info(f"Visa status not found, assuming Pending. Working days: {working_days}")
+            
+            subject = "Visa Application Status Update - Pending"
+            body = f"Your visa application is still Pending. It has been {working_days} working days since your application."
+            email_sent = send_email_notification(email, subject, body)
+            
+            response_data = {
+                "status": status,
+                "working_days": working_days,
+                "message": f"Your visa application is still Pending. It has been {working_days} working days since your application.",
+                "email_sent": email_sent,
+                "email_error": "" if email_sent else "Failed to send email notification. Please check your email address."
+            }
+        
+        logger.info(f"Sending response: {json.dumps(response_data)}")
+        return jsonify(response_data)
     except Exception as e:
         logger.error(f"Error in check_status route: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
