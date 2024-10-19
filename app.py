@@ -45,7 +45,7 @@ def calculate_working_days(start_date, end_date):
         current_date += timedelta(days=1)
     return working_days
 
-def send_email(recipient, subject, body):
+def send_email_notification(recipient, subject, body):
     try:
         msg = Message(subject, recipients=[recipient])
         msg.body = body
@@ -104,7 +104,7 @@ def check_status():
             
             subject = f"Visa Application Status Update - {status}"
             body = f"Your visa application is {status}. It has been {working_days} working days since your application."
-            email_sent = send_email(email, subject, body)
+            email_sent = send_email_notification(email, subject, body)
             
             response_data = {
                 "status": status,
@@ -133,13 +133,13 @@ def internal_error(error):
 
 @app.route('/send_email', methods=['POST'])
 @limiter.limit("3 per minute")
-def send_email():
+def send_email_route():
     try:
         recipient = request.form["recipient"]
         subject = request.form["subject"]
         body = request.form["body"]
 
-        if send_email(recipient, subject, body):
+        if send_email_notification(recipient, subject, body):
             return jsonify({"success": True, "message": "Email sent successfully!"})
         else:
             return jsonify({"success": False, "message": "Error sending email"})
