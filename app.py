@@ -53,7 +53,7 @@ def send_email(recipient, subject, body):
         logger.info(f"Email sent to {recipient}")
         return True
     except Exception as e:
-        logger.error(f"Error sending email: {str(e)}")
+        logger.error(f"Error sending email: {str(e)}", exc_info=True)
         return False
 
 @app.route('/')
@@ -123,7 +123,7 @@ def check_status():
 @app.errorhandler(500)
 def internal_error(error):
     logger.error(f"Internal Server Error: {str(error)}", exc_info=True)
-    return f"Internal Server Error: {str(error)}", 500
+    return jsonify({"error": "Internal Server Error", "message": str(error)}), 500
 
 @app.route('/send_email', methods=['POST'])
 @limiter.limit("3 per minute")

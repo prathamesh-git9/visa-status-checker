@@ -84,8 +84,17 @@ document.getElementById('status-form').addEventListener('submit', async function
     } catch (error) {
         console.error('Error in form submission:', error);
         hideLoading();
-        document.getElementById('result').innerHTML = '<p>An error occurred. Please try again later.</p>';
-        showNotification('An error occurred. Please try again later.', 'error');
+        let errorMessage = 'An error occurred. Please try again later.';
+        if (error instanceof Response) {
+            try {
+                const errorData = await error.json();
+                errorMessage = errorData.message || errorData.error || errorMessage;
+            } catch (e) {
+                console.error('Error parsing error response:', e);
+            }
+        }
+        document.getElementById('result').innerHTML = `<p>${errorMessage}</p>`;
+        showNotification(errorMessage, 'error');
     }
 });
 
