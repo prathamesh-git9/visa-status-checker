@@ -8,7 +8,6 @@ from flask_wtf.csrf import CSRFProtect, generate_csrf
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import json
-import ezodf
 
 # Set up logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -33,6 +32,7 @@ mail = Mail(app)
 def load_visa_database():
     visa_database = {}
     try:
+        import ezodf
         if os.path.exists('visa_status.ods'):
             doc = ezodf.opendoc('visa_status.ods')
             sheet = doc.sheets[0]
@@ -44,6 +44,8 @@ def load_visa_database():
             logger.info(f"Loaded {len(visa_database)} visa records from visa_status.ods")
         else:
             logger.warning("visa_status.ods file not found. Using empty database.")
+    except ImportError:
+        logger.error("ezodf library not found. Unable to load .ods file.")
     except Exception as e:
         logger.error(f"Error loading visa database: {str(e)}", exc_info=True)
     return visa_database
