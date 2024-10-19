@@ -189,4 +189,7 @@ def create_admin():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    if os.environ.get('FLASK_ENV') == 'development':
+        app.run(debug=True)
+    else:
+        app.run()
