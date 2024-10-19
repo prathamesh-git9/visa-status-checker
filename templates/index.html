@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visa Status Checker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('index') }}">Home</a></li>
+                <li><a href="{{ url_for('about') }}">About</a></li>
+            </ul>
+        </nav>
+        <h1>Visa Status Checker</h1>
+        <form id="status-form">
+            <label for="irl_number">IRL Number:</label>
+            <input type="text" id="irl_number" name="irl_number" required>
+            
+            <label for="application_date">Application Date:</label>
+            <input type="date" id="application_date" name="application_date" required>
+            
+            <button type="submit">Check Status</button>
+        </form>
+        <div id="result"></div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

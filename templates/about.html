@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - Visa Status Checker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('index') }}">Home</a></li>
+                <li><a href="{{ url_for('about') }}">About</a></li>
+            </ul>
+        </nav>
+        <h1>About Visa Status Checker</h1>
+        <p>The Visa Status Checker is a user-friendly web application that allows visa applicants to easily check their visa application status and receive important information about their application.</p>
+        <p>Our service provides real-time updates on visa application statuses, calculates working days since the application date, and sends automated email notifications to keep applicants informed throughout the process.</p>
+        <h2>Frequently Asked Questions</h2>
+        <dl>
+            <dt>How do I find my IRL number?</dt>
+            <dd>Your IRL (Indian Resident Label) number can be found on your visa application receipt or confirmation email.</dd>
+            
+            <dt>How long does it take to process a visa application?</dt>
+            <dd>Processing times vary depending on the type of visa and current workload. Typically, it takes 5-15 working days.</dd>
+            
+            <dt>What should I do if my application is rejected?</dt>
+            <dd>If your application is rejected, you will receive an email with further instructions. You may need to contact our office for more information and to discuss your options.</dd>
+        </dl>
+    </div>
+</body>
+</html>
