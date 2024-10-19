@@ -4,7 +4,7 @@ import logging
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from datetime import datetime, timedelta
 from flask_mail import Mail, Message
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import json
@@ -68,7 +68,13 @@ def index():
 # Add this new route to get CSRF token
 @app.route('/get-csrf-token')
 def get_csrf_token():
-    return jsonify({'csrf_token': csrf.generate_csrf()})
+    try:
+        csrf_token = generate_csrf()
+        logger.info(f"Generated CSRF token: {csrf_token}")
+        return jsonify({'csrf_token': csrf_token})
+    except Exception as e:
+        logger.error(f"Error generating CSRF token: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Failed to generate CSRF token'}), 500
 
 @app.route("/check_status", methods=["POST"])
 @limiter.limit("5 per minute")
