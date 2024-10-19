@@ -17,7 +17,9 @@ logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///visa_applications.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///visa_applications.db')
+if app.config['SQLALCHEMY_DATABASE_URI'].startswith("postgres://"):
+    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
@@ -189,13 +191,9 @@ def create_admin():
         return "Admin user created successfully"
     return render_template("create_admin.html")
 
-if __name__ == "__main__":
-    try:
-        with app.app_context():
-            db.create_all()
-        if os.environ.get('FLASK_ENV') == 'development':
-            app.run(debug=True)
-        else:
-            app.run()
-    except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
+@app.route('/')
+def hello():
+    return "Hello, World!"
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
