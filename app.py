@@ -9,8 +9,11 @@ import os
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+import logging
 
 load_dotenv()
+
+logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
@@ -187,9 +190,12 @@ def create_admin():
     return render_template("create_admin.html")
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-    if os.environ.get('FLASK_ENV') == 'development':
-        app.run(debug=True)
-    else:
-        app.run()
+    try:
+        with app.app_context():
+            db.create_all()
+        if os.environ.get('FLASK_ENV') == 'development':
+            app.run(debug=True)
+        else:
+            app.run()
+    except Exception as e:
+        logging.error(f"An error occurred: {str(e)}")
