@@ -77,7 +77,7 @@ def get_csrf_token():
         return jsonify({'error': 'Failed to generate CSRF token'}), 500
 
 @app.route("/check_status", methods=["POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per minute")  # Increased from 5 to 10 per minute
 def check_status():
     logger.info("check_status route accessed")
     try:

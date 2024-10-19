@@ -52,6 +52,10 @@ document.getElementById('status-form').addEventListener('submit', async function
         
         console.log('Response received:', response.status);
         
+        if (response.status === 429) {
+            throw new Error('Too many requests. Please wait a moment before trying again.');
+        }
+        
         const data = await response.json();
         console.log('Parsed response data:', data);
         
@@ -84,10 +88,7 @@ document.getElementById('status-form').addEventListener('submit', async function
     } catch (error) {
         console.error('Error in form submission:', error);
         hideLoading();
-        let errorMessage = 'An error occurred. Please try again later.';
-        if (error.message) {
-            errorMessage = error.message;
-        }
+        let errorMessage = error.message || 'An error occurred. Please try again later.';
         document.getElementById('result').innerHTML = `<p>${errorMessage}</p>`;
         showNotification(errorMessage, 'error');
     }
