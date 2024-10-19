@@ -1,7 +1,7 @@
 import os
 import sys
 import logging
-from flask import Flask
+from flask import Flask, render_template
 
 # Set up logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 @app.route('/')
-def hello():
-    logger.info("Hello route accessed")
-    return "Hello, World!"
+def index():
+    logger.info("Index route accessed")
+    return render_template('index.html')
 
 if __name__ == '__main__':
     logger.info("Starting application")
