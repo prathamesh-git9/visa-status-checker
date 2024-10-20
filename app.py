@@ -106,9 +106,17 @@ def check_status():
         
         logger.info(f"Parsed data - Application Number: {application_number}, Date: {application_date}, Email: {email}")
         
-        if not all([application_number, application_date, email]):
-            logger.error("Missing required fields")
-            return jsonify({"error": "Missing required fields"}), 400
+        if not application_number or not application_date or not email:
+            missing_fields = []
+            if not application_number:
+                missing_fields.append("application_number")
+            if not application_date:
+                missing_fields.append("application_date")
+            if not email:
+                missing_fields.append("email")
+            error_message = f"Missing required fields: {', '.join(missing_fields)}"
+            logger.error(error_message)
+            return jsonify({"error": error_message}), 400
         
         if application_number in visa_database:
             visa_info = visa_database[application_number]

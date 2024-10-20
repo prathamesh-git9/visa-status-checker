@@ -48,6 +48,16 @@ document.getElementById('status-form').addEventListener('submit', async function
     const formData = new FormData(this);
     console.log('Form data:', Object.fromEntries(formData));
     
+    // Validate form data
+    const application_number = formData.get('application_number');
+    const application_date = formData.get('application_date');
+    const email = formData.get('email');
+    
+    if (!application_number || !application_date || !email) {
+        showNotification('Please fill in all required fields', 'error');
+        return;
+    }
+    
     try {
         const csrfToken = await getCsrfToken();
         console.log('CSRF token obtained');
@@ -65,17 +75,13 @@ document.getElementById('status-form').addEventListener('submit', async function
         
         console.log('Response received:', response.status);
         
-        if (response.status === 429) {
-            throw new Error('Too many requests. Please wait a moment before trying again.');
-        }
-        
         const data = await response.json();
         console.log('Parsed response data:', data);
         
         hideLoading();
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}, message: ${data.error || data.message || 'Unknown error'}`);
+            throw new Error(`HTTP error! status: ${response.status}, message: ${data.error || 'Unknown error'}`);
         }
         
         console.log('Received data:', data);  // Log the received data
