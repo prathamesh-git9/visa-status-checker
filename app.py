@@ -8,9 +8,13 @@ from flask_wtf.csrf import CSRFProtect, generate_csrf
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import json
+import pandas as pd
+import numpy as np
 
 # Set up logging
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logging.basicConfig(filename='visa_debug.log', level=logging.DEBUG, 
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -20,44 +24,86 @@ csrf = CSRFProtect(app)
 limiter = Limiter(app, key_func=get_remote_address)
 
 # Email configuration
+os.environ['EMAIL_USERNAME'] = 'prathamesh8459ie@gmail.com'
+os.environ['EMAIL_PASSWORD'] = 'mdib irmc jwve cibt'
+os.environ['MAIL_DEFAULT_SENDER'] = 'prathamesh8459ie@gmail.com'
+
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = os.environ.get('EMAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('EMAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('EMAIL_USERNAME')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER')
 
 mail = Mail(app)
 
-def load_visa_database():
+def process_row(row):
+    if len(row) >= 2:
+        application_number = row[0].value  # Access the cell value directly
+        decision = row[1].value  # Access the cell value directly
+        if application_number and decision:
+            application_number = str(application_number).strip()
+            decision = str(decision).strip()
+            print(f"Processing application: {application_number}, decision: {decision}")
+            if decision.lower() == "approved":
+                return application_number, {"status": "Approved", "application_date": "2024-01-01"}
+    return None, None
+
+def read_ods_file(file_path):
+    logging.debug("Reading visa_status.ods file...")
+    df = pd.read_excel(file_path, engine="odf", header=None)
+    logging.debug(f"Total rows in sheet: {len(df)}")
+    return df
+
+def process_visa_row(row):
+    if pd.notna(row[2]) and pd.notna(row[3]):
+        application_number = str(row[2]).strip()
+        decision = str(row[3]).strip().lower()
+        if decision in ["approved", "refused"]:
+            return application_number, {"status": decision.capitalize(), "application_date": "2024-01-01"}
+    return None, None
+
+def process_dataframe(df):
     visa_database = {}
-    try:
-        import ezodf
-        if os.path.exists('visa_status.ods'):
-            doc = ezodf.opendoc('visa_status.ods')
-            sheet = doc.sheets[0]
-            for row in sheet.rows()[2:]:  # Skip the header rows
-                if len(row) >= 2 and row[0].value and row[1].value:
-                    application_number = str(row[0].value).strip()
-                    decision = row[1].value.strip()
-                    if decision == "Approved":
-                        visa_database[application_number] = {"status": "Approved", "application_date": "2024-01-01"}
-            logger.info(f"Loaded {len(visa_database)} visa records from visa_status.ods")
-        else:
-            logger.warning("visa_status.ods file not found. Using empty database.")
-    except ImportError:
-        logger.error("ezodf library not found. Unable to load .ods file.")
-    except Exception as e:
-        logger.error(f"Error loading visa database: {str(e)}", exc_info=True)
+    for index in range(len(df) - 1, -1, -1):
+        row = df.iloc[index]
+        application_number, visa_info = process_visa_row(row)
+        
+        if application_number == "Application Number":
+            break
+        
+        if application_number and visa_info:
+            visa_database[application_number] = visa_info
     return visa_database
 
+def load_visa_database():
+    if not os.path.exists('visa_status.ods'):
+        print("visa_status.ods file not found. Using empty database.")
+        return {}
+
+    try:
+        df = read_ods_file('visa_status.ods')
+        visa_database = process_dataframe(df)
+        print_database_summary(visa_database)
+        return visa_database
+    except Exception as e:
+        print(f"Error loading visa database: {str(e)}")
+        return {}
+
+def print_database_summary(visa_database):
+    print(f"Loaded {len(visa_database)} visa records from visa_status.ods")
+    print(f"First 10 entries: {dict(list(visa_database.items())[:10])}")
+    print(f"Last 10 entries: {dict(list(visa_database.items())[-10:])}")
+    print(f"Is 68728912 in database? {visa_database.get('68728912', 'Not found')}")
+
+# Make sure to reload the visa database after making changes
 visa_database = load_visa_database()
 
 def calculate_working_days(start_date, end_date):
     working_days = 0
     current_date = start_date
     while current_date <= end_date:
-        if current_date.weekday() < 5:  # Monday = 0, Friday = 4
+        if current_date.weekday() < 5: 
             working_days += 1
         current_date += timedelta(days=1)
     return working_days
@@ -96,15 +142,17 @@ def get_csrf_token():
 @app.route("/check_status", methods=["POST"])
 @limiter.limit("10 per minute")
 def check_status():
-    logger.info("check_status route accessed")
+    print("check_status route accessed")
     try:
-        logger.info(f"Received form data: {request.form}")
+        print(f"Received form data: {request.form}")
         
-        application_number = request.form.get("application_number")
+        application_number = request.form.get("application_number").split('.')[0]  # Remove decimal point if present
         application_date = request.form.get("application_date")
         email = request.form.get("email")
         
-        logger.info(f"Parsed data - Application Number: {application_number}, Date: {application_date}, Email: {email}")
+        print(f"Parsed data - Application Number: {application_number}, Date: {application_date}, Email: {email}")
+        print(f"Is {application_number} in visa_database? {application_number in visa_database}")
+        print(f"Visa database entry for {application_number}: {visa_database.get(application_number, 'Not found')}")
         
         if not application_number or not application_date or not email:
             missing_fields = []
@@ -115,53 +163,44 @@ def check_status():
             if not email:
                 missing_fields.append("email")
             error_message = f"Missing required fields: {', '.join(missing_fields)}"
-            logger.error(error_message)
+            print(error_message)
             return jsonify({"error": error_message}), 400
         
+        print(f"Checking if {application_number} is in visa_database")
         if application_number in visa_database:
             visa_info = visa_database[application_number]
             status = visa_info["status"]
-            app_date = datetime.strptime(application_date, "%Y-%m-%d")
-            current_date = datetime.now()
-            working_days = calculate_working_days(app_date, current_date)
-            
-            logger.info(f"Visa status found: {status}, Working days: {working_days}")
-            
-            subject = f"Visa Application Status Update - {status}"
-            body = f"Your visa application is {status}. It has been {working_days} working days since your application."
-            email_sent = send_email_notification(email, subject, body)
-            
-            response_data = {
-                "status": status,
-                "working_days": working_days,
-                "message": f"Your visa application is {status}. It has been {working_days} working days since your application.",
-                "email_sent": email_sent,
-                "email_error": "" if email_sent else "Failed to send email notification. Please check your email address."
-            }
+            print(f"Application {application_number} found in database. Status: {status}")
         else:
-            status = "Pending"
-            app_date = datetime.strptime(application_date, "%Y-%m-%d")
-            current_date = datetime.now()
-            working_days = calculate_working_days(app_date, current_date)
-            
-            logger.info(f"Visa status not found, assuming Pending. Working days: {working_days}")
-            
-            subject = "Visa Application Status Update - Pending"
-            body = f"Your visa application is still Pending. It has been {working_days} working days since your application."
-            email_sent = send_email_notification(email, subject, body)
-            
-            response_data = {
-                "status": status,
-                "working_days": working_days,
-                "message": f"Your visa application is still Pending. It has been {working_days} working days since your application.",
-                "email_sent": email_sent,
-                "email_error": "" if email_sent else "Failed to send email notification. Please check your email address."
-            }
+            status = "Not Found"
+            print(f"Application {application_number} not found in database.")
         
-        logger.info(f"Sending response: {json.dumps(response_data)}")
+        app_date = datetime.strptime(application_date, "%Y-%m-%d")
+        current_date = datetime.now()
+        working_days = calculate_working_days(app_date, current_date)
+        
+        print(f"Visa status found: {status}, Working days: {working_days}")
+        
+        if status == "Not Found":
+            message = f"Your visa application (number {application_number}) was not found in our database. Please check your application number and try again."
+        else:
+            message = f"Your visa application is {status}. It has been {working_days} working days since your application."
+        
+        subject = f"Visa Application Status Update - {status}"
+        body = message
+        email_sent = send_email_notification(email, subject, body)
+        
+        response_data = {
+            "status": status,
+            "working_days": working_days,
+            "message": message,
+            "email_sent": email_sent,
+            "email_error": "" if email_sent else "Failed to send email notification. Please check your email address."
+        }
+        print(f"Sending response: {response_data}")
         return jsonify(response_data)
     except Exception as e:
-        logger.error(f"Error in check_status route: {str(e)}", exc_info=True)
+        print(f"Error in check_status route: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.errorhandler(500)
